@@ -1,0 +1,25 @@
+name: Deploy to VM B1
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Deploy via SSH ke VM B1
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host:     ${{ secrets.VM_B1_HOST }}
+          username: ${{ secrets.VM_B1_USER }}
+          key:      ${{ secrets.VM_B1_SSH_KEY }}
+          script: |
+            cd /opt/homelab/token-monitor
+            git pull origin main
+            docker compose up -d --build
+            echo "Deploy selesai: $(date)"
