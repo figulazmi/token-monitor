@@ -34,36 +34,36 @@ def test_env_var_figur(monkeypatch):
 
 
 def test_auto_detect_azmi(monkeypatch):
-    """Detect claude-azmi from claude auth status email."""
+    """azmi.codes@gmail.com → slug 'azmi-codes' (dots replaced with dashes)."""
     monkeypatch.delenv("CLAUDE_ACCOUNT", raising=False)
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = json.dumps({"loggedIn": True, "email": "azmi.codes@gmail.com"})
 
     with patch("subprocess.run", return_value=mock_result):
-        assert auto_logger.get_claude_account() == "claude-azmi"
+        assert auto_logger.get_claude_account() == "azmi-codes"
 
 
 def test_auto_detect_figur(monkeypatch):
-    """Detect claude-figur from claude auth status email."""
+    """figurululazmi@gmail.com → slug 'figurululazmi' (no dots, unchanged)."""
     monkeypatch.delenv("CLAUDE_ACCOUNT", raising=False)
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = json.dumps({"loggedIn": True, "email": "figurululazmi@gmail.com"})
 
     with patch("subprocess.run", return_value=mock_result):
-        assert auto_logger.get_claude_account() == "claude-figur"
+        assert auto_logger.get_claude_account() == "figurululazmi"
 
 
-def test_unknown_email_returns_none(monkeypatch):
-    """Unknown email → UNASSIGNED (None)."""
+def test_unknown_email_returns_slug(monkeypatch):
+    """Any valid email → derive slug from local-part (no longer UNASSIGNED)."""
     monkeypatch.delenv("CLAUDE_ACCOUNT", raising=False)
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = json.dumps({"loggedIn": True, "email": "unknown@example.com"})
 
     with patch("subprocess.run", return_value=mock_result):
-        assert auto_logger.get_claude_account() is None
+        assert auto_logger.get_claude_account() == "unknown"
 
 
 def test_claude_cli_not_found_returns_none(monkeypatch):

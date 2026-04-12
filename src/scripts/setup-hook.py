@@ -186,7 +186,8 @@ def main() -> None:
         print(f"  [ERROR] auto-logger.py not found at:")
         print(f"          {AUTO_LOGGER}")
         print()
-        print("  Make sure you cloned the full token-monitor repository.")
+        print("  Make sure auto-logger.py is in the same folder as this script,")
+    print("  or download it from: http://192.168.18.169:3010")
         sys.exit(1)
 
     print(f"  Script : {AUTO_LOGGER}")
@@ -303,9 +304,8 @@ def main() -> None:
     print(f"     {dashboard}")
     print()
     if not account_flag:
-        print("  NOTE: No account set. Sessions will be logged as UNASSIGNED.")
-        print("        Ask the repo owner to add your email to EMAIL_ACCOUNT_MAP")
-        print(f"        in: {AUTO_LOGGER}")
+        print("  NOTE: No account set. Sessions will be logged by email username.")
+        print("        Re-run with --account claude-yourname to set a custom identifier.")
         print()
 
 

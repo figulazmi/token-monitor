@@ -3,9 +3,13 @@
 auto-logger.py — Claude Code SessionEnd hook
 Reads token usage from hook stdin then POSTs to Token Monitor API.
 
+Standalone script — no dependencies on the repo. Download once, never update.
+
 Account detection priority:
-  1. CLAUDE_ACCOUNT env var (manual override)
-  2. `claude auth status` → email → mapped to identifier
+  1. CLAUDE_ACCOUNT env var (set at hook install time via setup-hook.py)
+  2. `claude auth status` → email → slug (local-part, dots→dashes, lowercase)
+     e.g. azmi.codes@gmail.com → "azmi-codes"
+          figurululazmi@gmail.com → "figurululazmi"
   3. None (logged as UNASSIGNED — assignable from dashboard)
 
 Setup in global ~/.claude/settings.json (applies to ALL projects):
@@ -42,41 +46,30 @@ PLATFORM = "claude"
 MODEL    = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
 PROJECT  = os.getenv("TOKEN_MONITOR_PROJECT", "")
 
-# Email → account identifier mapping
-# Add team members here before distributing the repo.
-# Format: "email@domain.com": "claude-identifier"
-EMAIL_ACCOUNT_MAP: dict[str, str] = {
-    "azmi.codes@gmail.com":    "claude-azmi",
-    "figurululazmi@gmail.com": "claude-figur",
-    # "teammate@email.com":   "claude-teammate",   # ← add team members here
-}
-
-
 def get_claude_account() -> str | None:
     """
     Detect which Claude account is logged in.
-    Priority: CLAUDE_ACCOUNT env var > claude auth status > None (UNASSIGNED).
+    Priority: CLAUDE_ACCOUNT env var > email-derived slug > None (UNASSIGNED).
     """
-    # 1. Manual override via env var
+    # 1. Explicit override (set at hook install time via setup-hook.py or manual config)
     override = os.getenv("CLAUDE_ACCOUNT")
     if override:
         return override
 
-    # 2. Auto-detect via `claude auth status`
+    # 2. Derive identifier from logged-in email: local-part, dots→dashes, lowercase
+    #    e.g. azmi.codes@gmail.com → "azmi-codes"
+    #         figurululazmi@gmail.com → "figurululazmi"
     try:
         result = subprocess.run(
             ["claude", "auth", "status"],
             capture_output=True, text=True, timeout=5,
         )
         if result.returncode == 0 and result.stdout.strip():
-            data = json.loads(result.stdout.strip())
+            data  = json.loads(result.stdout.strip())
             email = data.get("email", "")
-            account = EMAIL_ACCOUNT_MAP.get(email)
-            if account:
-                return account
-            # Email known but not in map → return email-based fallback
             if email:
-                print(f"[auto-logger] Unknown email '{email}', logging as UNASSIGNED", file=sys.stderr)
+                username = email.split("@")[0].replace(".", "-").lower()
+                return username
     except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError):
         pass
 
