@@ -27,26 +27,32 @@ _Authored by: Figur Ulul Azmi_
 
 ```
 token-monitor/
-├── backend/
-│   ├── app/
-│   │   ├── core/         — config, database, pricing
-│   │   ├── models/       — SQLAlchemy ORM
-│   │   ├── routers/      — sessions CRUD
-│   │   ├── schemas/      — Pydantic request/response
-│   │   └── main.py       — app factory, /health, /stats
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── main.tsx      — entry point
-│   │   └── TokenMonitor.jsx — dashboard UI
-│   ├── nginx.conf        — SPA + API proxy config
-│   ├── Dockerfile        — multi-stage build
-│   └── package.json
-├── scripts/
-│   └── auto-logger.py    — Claude Code SessionEnd hook
+├── src/
+│   ├── backend/
+│   │   ├── app/
+│   │   │   ├── core/         — config, database, pricing
+│   │   │   ├── models/       — SQLAlchemy ORM
+│   │   │   ├── routers/      — sessions CRUD
+│   │   │   ├── schemas/      — Pydantic request/response
+│   │   │   └── main.py       — app factory, /health, /stats
+│   │   ├── Dockerfile
+│   │   └── requirements.txt
+│   ├── frontend/
+│   │   ├── src/
+│   │   │   ├── main.tsx          — entry point
+│   │   │   └── TokenMonitor.jsx  — dashboard UI
+│   │   ├── nginx.conf        — SPA + API proxy config
+│   │   ├── Dockerfile        — multi-stage build
+│   │   └── package.json
+│   └── scripts/
+│       └── auto-logger.py    — Claude Code SessionEnd hook
+├── tests/
+│   ├── backend/              — API endpoint tests (SQLite)
+│   └── scripts/              — auto-logger unit tests
 ├── docker-compose.yml
-├── SETUP.md
+├── pytest.ini
+├── RUNNING.md                — local dev guide
+├── SETUP.md                  — VM B1 deployment guide
 └── README.md
 ```
 
@@ -104,21 +110,26 @@ docker compose up -d --build
 
 ## Local Development
 
-```bash
-# Backend
-cd backend
-python -m uvicorn app.main:app --reload
+See **[RUNNING.md](RUNNING.md)** for the complete step-by-step guide including database setup, troubleshooting, and quick reference.
 
-# Frontend (separate terminal)
-cd frontend
-npm install
+```powershell
+# Quick start — run these in order
+
+# 1. Start DB (Docker)
+docker run -d --name token-db-local -e POSTGRES_DB=tokenmonitor -e POSTGRES_USER=tokenuser -e POSTGRES_PASSWORD=tokenpass123 -p 5433:5432 postgres:16-alpine
+
+# 2. Backend (from src\backend)
+$env:DATABASE_URL = "postgresql://tokenuser:tokenpass123@localhost:5433/tokenmonitor"
+.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+
+# 3. Frontend (separate terminal, from src\frontend)
 npm run dev
-# → http://localhost:5173 (proxies /api → localhost:8000)
+# → http://localhost:5173
 ```
 
 ## Hook Setup (per Claude account)
 
-Add to project `.claude/settings.json`:
+Add to global `~/.claude/settings.json` to auto-log all sessions:
 
 ```json
 {
@@ -129,7 +140,7 @@ Add to project `.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/scripts/auto-logger.py"
+            "command": "python3 /opt/homelab/token-monitor/src/scripts/auto-logger.py"
           }
         ]
       }
@@ -138,4 +149,5 @@ Add to project `.claude/settings.json`:
 }
 ```
 
-See `SETUP.md` for full configuration guide.
+Account is auto-detected from `claude auth status` — no env var needed.  
+See `SETUP.md` for full configuration guide including manual override options.
