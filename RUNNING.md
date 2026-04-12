@@ -173,7 +173,7 @@ Untuk production, semua service (DB + API + UI) dijalankan via Docker Compose.
 ```bash
 # SSH ke VM B1
 ssh user@192.168.18.169
-cd /opt/homelab/token-monitor
+cd /opt/homelab/infrastructure/token-monitor
 
 # Pastikan network rag-net ada
 docker network create rag-net 2>/dev/null || true
@@ -182,12 +182,12 @@ docker network create rag-net 2>/dev/null || true
 docker compose up -d --build
 
 # Verifikasi
-curl http://localhost:8000/health
+curl http://localhost:8010/health
 ```
 
 **URL Production:**
-- Dashboard: http://192.168.18.169:3000
-- API: http://192.168.18.169:8000
+- Dashboard: http://192.168.18.169:3010
+- API: http://192.168.18.169:8010
 
 Lihat `SETUP.md` untuk panduan lengkap deployment dan hook configuration.
 

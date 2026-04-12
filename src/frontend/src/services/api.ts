@@ -1,6 +1,6 @@
 import type { SessionLog, SessionLogCreate, Stats } from "../types"
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://192.168.18.169:8000"
+const BASE_URL = import.meta.env.VITE_API_URL ?? "http://192.168.18.169:8010"
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {

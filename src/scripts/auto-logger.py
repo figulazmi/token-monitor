@@ -31,7 +31,7 @@ import sys
 from datetime import datetime
 
 # ── Config ───────────────────────────────────────────────────────────────────
-API_URL  = os.getenv("TOKEN_MONITOR_URL", "http://192.168.18.169:8000")
+API_URL  = os.getenv("TOKEN_MONITOR_URL", "http://192.168.18.169:8010")
 PLATFORM = "claude"
 MODEL    = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
 PROJECT  = os.getenv("TOKEN_MONITOR_PROJECT", "")

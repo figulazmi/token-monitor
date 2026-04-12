@@ -80,7 +80,7 @@ token-monitor/
 ```bash
 # 1. Clone
 git clone <repo-url> /opt/homelab/infrastructure/token-monitor
-cd /opt/homelab/token-monitor
+cd /opt/homelab/infrastructure/token-monitor
 
 # 2. Ensure rag-net exists
 docker network create rag-net 2>/dev/null || true
@@ -89,12 +89,12 @@ docker network create rag-net 2>/dev/null || true
 docker compose up -d --build
 
 # 4. Verify
-curl http://localhost:8000/health
+curl http://localhost:8010/health
 # → {"status":"ok","timestamp":"..."}
 ```
 
-Dashboard: **http://192.168.18.169:3000**  
-API: **http://192.168.18.169:8000**
+Dashboard: **http://192.168.18.169:3010**  
+API: **http://192.168.18.169:8010**
 
 ## Update & Redeploy
 
@@ -103,7 +103,7 @@ API: **http://192.168.18.169:8000**
 git push origin main
 
 # VM B1 — pull + rebuild
-cd /opt/homelab/token-monitor
+cd /opt/homelab/infrastructure/token-monitor
 git pull
 docker compose up -d --build
 ```
@@ -140,7 +140,7 @@ Add to global `~/.claude/settings.json` to auto-log all sessions:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 /opt/homelab/token-monitor/src/scripts/auto-logger.py"
+            "command": "python3 /opt/homelab/infrastructure/token-monitor/src/scripts/auto-logger.py"
           }
         ]
       }

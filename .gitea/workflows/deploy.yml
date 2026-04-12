@@ -19,7 +19,7 @@ jobs:
           username: ${{ secrets.VM_B1_USER }}
           key:      ${{ secrets.VM_B1_SSH_KEY }}
           script: |
-            cd /opt/homelab/token-monitor
+            cd /opt/homelab/infrastructure/token-monitor
             git pull origin main
             docker compose up -d --build
             echo "Deploy selesai: $(date)"

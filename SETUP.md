@@ -12,7 +12,7 @@ ssh user@192.168.18.169
 
 # Clone repo
 git clone <repo-url> /opt/homelab/infrastructure/token-monitor
-cd /opt/homelab/token-monitor
+cd /opt/homelab/infrastructure/token-monitor
 
 # Ensure Docker network exists (shared with rag-gateway)
 docker network ls | grep rag-net || docker network create rag-net
@@ -21,15 +21,15 @@ docker network ls | grep rag-net || docker network create rag-net
 docker compose up -d --build
 
 # Verify
-curl http://localhost:8000/health
+curl http://localhost:8010/health
 # → {"status":"ok","timestamp":"..."}
 
-curl http://localhost:8000/stats
+curl http://localhost:8010/stats
 # → {"total_sessions":0,...}
 ```
 
-**Dashboard:** http://192.168.18.169:3000  
-**API:** http://192.168.18.169:8000
+**Dashboard:** http://192.168.18.169:3010  
+**API:** http://192.168.18.169:8010
 
 ---
 
@@ -40,7 +40,7 @@ curl http://localhost:8000/stats
 git push origin main
 
 # VM B1 — pull + rebuild
-cd /opt/homelab/token-monitor
+cd /opt/homelab/infrastructure/token-monitor
 git pull
 docker compose up -d --build
 ```
@@ -76,7 +76,7 @@ POSTs token usage to the API automatically.
 
 ```bash
 # On VM B1 — script is already in the repo
-chmod +x /opt/homelab/token-monitor/scripts/auto-logger.py
+chmod +x /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py
 ```
 
 ### 4b. Configure per account (on your laptop)
@@ -94,7 +94,7 @@ Add to each project's `.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/token-monitor/scripts/auto-logger.py"
+            "command": "CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py"
           }
         ]
       }
@@ -114,7 +114,7 @@ Add to each project's `.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_ACCOUNT=claude-figur TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/token-monitor/scripts/auto-logger.py"
+            "command": "CLAUDE_ACCOUNT=claude-figur TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py"
           }
         ]
       }
@@ -127,7 +127,7 @@ Add to each project's `.claude/settings.json`:
 
 | Variable                | Default                      | Description                          |
 | ----------------------- | ---------------------------- | ------------------------------------ |
-| `TOKEN_MONITOR_URL`     | `http://192.168.18.169:8000` | Backend API URL                      |
+| `TOKEN_MONITOR_URL`     | `http://192.168.18.169:8010` | Backend API URL                      |
 | `CLAUDE_ACCOUNT`        | `claude-azmi`                | Account identifier (see table below) |
 | `CLAUDE_MODEL`          | `claude-sonnet-4-6`          | Model used in the session            |
 | `TOKEN_MONITOR_PROJECT` | CWD folder name              | Project name tag                     |
@@ -142,7 +142,7 @@ Add to each project's `.claude/settings.json`:
 
 ```bash
 CLAUDE_ACCOUNT=claude-azmi CLAUDE_MODEL=claude-opus-4-6 TOKEN_MONITOR_PROJECT=homelab \
-  python3 /opt/homelab/token-monitor/scripts/auto-logger.py
+  python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py
 ```
 
 ---
@@ -153,11 +153,11 @@ CLAUDE_ACCOUNT=claude-azmi CLAUDE_MODEL=claude-opus-4-6 TOKEN_MONITOR_PROJECT=ho
 # Test the hook script manually
 echo '{"usage":{"input_tokens":1000,"output_tokens":300}}' | \
   CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=test \
-  python3 /opt/homelab/token-monitor/scripts/auto-logger.py
+  python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py
 # → [auto-logger] Logged 1,300 tokens (1,000 in / 300 out) [claude-azmi] → http://...
 
 # Manual POST via curl
-curl -X POST http://localhost:8000/sessions \
+curl -X POST http://localhost:8010/sessions \
   -H "Content-Type: application/json" \
   -d '{
     "platform": "copilot",
@@ -170,10 +170,10 @@ curl -X POST http://localhost:8000/sessions \
   }'
 
 # Query stats
-curl http://localhost:8000/stats | python3 -m json.tool
+curl http://localhost:8010/stats | python3 -m json.tool
 
 # Filter by account
-curl "http://localhost:8000/sessions?account=claude-azmi&limit=10"
+curl "http://localhost:8010/sessions?account=claude-azmi&limit=10"
 ```
 
 ---
@@ -181,13 +181,13 @@ curl "http://localhost:8000/sessions?account=claude-azmi&limit=10"
 ## 6. GitHub Copilot — Manual Logging
 
 Copilot does not have a hook system. Use the dashboard form at  
-**http://192.168.18.169:3000** → `+ LOG SESSION` → select **GitHub Copilot** + **Copilot · azmi.codes**.
+**http://192.168.18.169:3010** → `+ LOG SESSION` → select **GitHub Copilot** + **Copilot · azmi.codes**.
 
 ---
 
 ## 7. Optional — Custom DB Password
 
-Create `/opt/homelab/token-monitor/.env`:
+Create `/opt/homelab/infrastructure/token-monitor/.env`:
 
 ```env
 DB_PASSWORD=your-secure-password
@@ -211,16 +211,16 @@ Then redeploy: `docker compose up -d --build`
 
 ```bash
 # 1. Health check
-curl http://192.168.18.169:8000/health
+curl http://192.168.18.169:8010/health
 
 # 2. Dashboard loads
-curl -s http://192.168.18.169:3000 | grep "TOKEN MONITOR"
+curl -s http://192.168.18.169:3010 | grep "TOKEN MONITOR"
 
 # 3. Test hook
 echo '{"usage":{"input_tokens":500,"output_tokens":100}}' | \
   CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=validation-test \
-  python3 /opt/homelab/token-monitor/scripts/auto-logger.py
+  python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py
 
 # 4. Verify data appeared
-curl "http://192.168.18.169:8000/sessions?limit=1" | python3 -m json.tool
+curl "http://192.168.18.169:8010/sessions?limit=1" | python3 -m json.tool
 ```
