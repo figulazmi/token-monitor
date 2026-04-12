@@ -108,23 +108,23 @@ docker compose down -v
 
 ## VM B1 Deployment
 
-- **Dashboard:** `http://192.168.18.169:3000`
-- **API:** `http://192.168.18.169:8000`
+- **Dashboard:** `http://192.168.18.169:3010`
+- **API:** `http://192.168.18.169:8010`
 
 ### First Deploy (one-time)
 
 ```bash
 ssh user@192.168.18.169
 
-git clone <repo-url> /opt/homelab/token-monitor
-cd /opt/homelab/token-monitor
+git clone <repo-url> /opt/homelab/infrastructure/token-monitor
+cd /opt/homelab/infrastructure/token-monitor
 
 # Ensure shared Docker network exists
 docker network ls | grep rag-net || docker network create rag-net
 
 docker compose up -d --build
 
-curl http://localhost:8000/health
+curl http://localhost:8010/health
 # → {"status":"ok","timestamp":"..."}
 ```
 
@@ -135,7 +135,7 @@ curl http://localhost:8000/health
 git push origin main
 
 # Or manually on VM B1
-cd /opt/homelab/token-monitor
+cd /opt/homelab/infrastructure/token-monitor
 git pull
 docker compose up -d --build
 ```
@@ -144,7 +144,7 @@ docker compose up -d --build
 
 - CI/CD: `.gitea/workflows/deploy.yml` — auto SSH deploy on push to `main`
 - Secrets: `VM_B1_HOST`, `VM_B1_USER`, `VM_B1_SSH_KEY` stored in Gitea repo secrets
-- Optional custom DB password: create `/opt/homelab/token-monitor/.env` with `DB_PASSWORD=...`
+- Optional custom DB password: create `/opt/homelab/infrastructure/token-monitor/.env` with `DB_PASSWORD=...`
 
 ## Hook Setup (per Claude account)
 
@@ -161,7 +161,7 @@ Add to each project's `.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/token-monitor/scripts/auto-logger.py"
+            "command": "CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py"
           }
         ]
       }
@@ -181,7 +181,7 @@ Add to each project's `.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_ACCOUNT=claude-figur TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/token-monitor/scripts/auto-logger.py"
+            "command": "CLAUDE_ACCOUNT=claude-figur TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py"
           }
         ]
       }
@@ -194,7 +194,7 @@ Add to each project's `.claude/settings.json`:
 
 | Variable                | Default                      | Description                          |
 | ----------------------- | ---------------------------- | ------------------------------------ |
-| `TOKEN_MONITOR_URL`     | `http://192.168.18.169:8000` | Backend API URL                      |
+| `TOKEN_MONITOR_URL`     | `http://192.168.18.169:8010` | Backend API URL                      |
 | `CLAUDE_ACCOUNT`        | `claude-azmi`                | Account identifier (see table above) |
 | `CLAUDE_MODEL`          | `claude-sonnet-4-6`          | Model used in the session            |
 | `TOKEN_MONITOR_PROJECT` | CWD folder name              | Project name tag                     |

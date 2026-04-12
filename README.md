@@ -79,7 +79,7 @@ token-monitor/
 
 ```bash
 # 1. Clone
-git clone <repo-url> /opt/homelab/token-monitor
+git clone <repo-url> /opt/homelab/infrastructure/token-monitor
 cd /opt/homelab/token-monitor
 
 # 2. Ensure rag-net exists

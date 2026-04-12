@@ -11,7 +11,7 @@ _Authored by: Figur Ulul Azmi_
 ssh user@192.168.18.169
 
 # Clone repo
-git clone <repo-url> /opt/homelab/token-monitor
+git clone <repo-url> /opt/homelab/infrastructure/token-monitor
 cd /opt/homelab/token-monitor
 
 # Ensure Docker network exists (shared with rag-gateway)

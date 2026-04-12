@@ -23,7 +23,7 @@ services:
     container_name: token-api
     restart: unless-stopped
     ports:
-      - "8000:8000"       # direct API access (auto-logger, curl)
+      - "8010:8000"       # direct API access (auto-logger, curl)
     environment:
       DATABASE_URL: postgresql://tokenuser:${DB_PASSWORD:-tokenpass123}@token-db:5432/tokenmonitor
     depends_on:
@@ -37,7 +37,7 @@ services:
     container_name: token-ui
     restart: unless-stopped
     ports:
-      - "3000:80"         # dashboard: http://192.168.18.169:3000
+      - "3010:80"         # dashboard: http://192.168.18.169:3010
     depends_on:
       - token-api
     networks:
