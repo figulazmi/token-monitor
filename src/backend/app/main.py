@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 from datetime import datetime, timezone
 
-from src.backend.app.core.database import get_db, engine
-from src.backend.app.models import Base, SessionLog
-from src.backend.app.routers import sessions
+from app.core.database import get_db, engine
+from app.models import Base, SessionLog
+from app.routers import sessions
 
 Base.metadata.create_all(bind=engine)
 

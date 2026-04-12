@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, BigInteger, Float, DateTime, func
-from src.backend.app.core.database import Base
+from app.core.database import Base
 
 
 class SessionLog(Base):

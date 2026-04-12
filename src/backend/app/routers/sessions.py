@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel
 
-from src.backend.app.core.database import get_db
-from src.backend.app.models import SessionLog
-from src.backend.app.schemas import SessionLogCreate, SessionLogResponse
-from src.backend.app.core.pricing import calc_cost
+from app.core.database import get_db
+from app.models import SessionLog
+from app.schemas import SessionLogCreate, SessionLogResponse
+from app.core.pricing import calc_cost
 
 
 class AccountUpdate(BaseModel):
