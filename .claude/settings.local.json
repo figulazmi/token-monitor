@@ -104,7 +104,11 @@
       "Bash(src/backend/.venv/Scripts/pytest.exe tests/ -v)",
       "Bash(\"C:/Users/Clandesitine/source/repos/token-monitor/src/backend/.venv/Scripts/pip.exe\" install:*)",
       "Bash(\"C:/Users/Clandesitine/source/repos/token-monitor/src/backend/.venv/Scripts/python.exe\" -m pip install httpx pytest)",
-      "Bash(\"src/backend/.venv/Scripts/python.exe\" -m pytest tests/ -v)"
+      "Bash(\"src/backend/.venv/Scripts/python.exe\" -m pytest tests/ -v)",
+      "Bash(mkdir -p \"C:/Users/Clandesitine/.claude/commands\")",
+      "Bash(mkdir -p \"C:/Users/Clandesitine/source/repos/token-monitor/.claude/commands\")",
+      "Bash(cp \"C:/Users/Clandesitine/source/repos/token-monitor/.claude/skills/rag-knowledge-capture-cli/SKILL.md\" \"C:/Users/Clandesitine/.claude/commands/rag-knowledge-capture-cli.md\")",
+      "Bash(cp \"C:/Users/Clandesitine/source/repos/token-monitor/.claude/skills/rag-knowledge-capture-cli/SKILL.md\" \"C:/Users/Clandesitine/source/repos/token-monitor/.claude/commands/rag-knowledge-capture-cli.md\")"
     ]
   },
   "enabledPlugins": {
