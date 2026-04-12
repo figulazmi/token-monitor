@@ -10,7 +10,7 @@ from app.core.pricing import calc_cost
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 
-@router.post("", response_model=SessionLogResponse)
+@router.post("", response_model=SessionLogResponse, status_code=201)
 def create_session(req: SessionLogCreate, db: Session = Depends(get_db)):
     cost = calc_cost(req.model, req.input_tokens, req.output_tokens)
     log = SessionLog(**req.model_dump(), cost_usd=cost)
@@ -23,6 +23,7 @@ def create_session(req: SessionLogCreate, db: Session = Depends(get_db)):
 @router.get("", response_model=list[SessionLogResponse])
 def list_sessions(
     platform: Optional[str] = None,
+    account:  Optional[str] = None,
     project:  Optional[str] = None,
     limit:    int = 50,
     db: Session = Depends(get_db),
@@ -30,6 +31,8 @@ def list_sessions(
     q = db.query(SessionLog)
     if platform:
         q = q.filter(SessionLog.platform == platform)
+    if account:
+        q = q.filter(SessionLog.account == account)
     if project:
         q = q.filter(SessionLog.project == project)
     return q.order_by(SessionLog.logged_at.desc()).limit(limit).all()
