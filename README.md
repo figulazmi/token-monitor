@@ -3,25 +3,25 @@
 Token usage monitoring for Claude Code CLI + GitHub Copilot across multiple accounts.  
 Sessions are auto-logged via Claude Code `SessionEnd` hook → FastAPI → PostgreSQL.
 
-*Authored by: Figur Ulul Azmi*
+_Authored by: Figur Ulul Azmi_
 
 ## Stack
 
-| Layer     | Technology                              |
-|-----------|-----------------------------------------|
-| Backend   | FastAPI · SQLAlchemy · PostgreSQL        |
-| Frontend  | React · Vite · nginx                    |
-| Database  | PostgreSQL 16 (Docker volume)           |
-| Hook      | Python script (`scripts/auto-logger.py`) |
-| Network   | Docker `rag-net` (shared with homelab)  |
+| Layer    | Technology                               |
+| -------- | ---------------------------------------- |
+| Backend  | FastAPI · SQLAlchemy · PostgreSQL        |
+| Frontend | React · Vite · nginx                     |
+| Database | PostgreSQL 16 (Docker volume)            |
+| Hook     | Python script (`scripts/auto-logger.py`) |
+| Network  | Docker `rag-net` (shared with homelab)   |
 
 ## Accounts Monitored
 
-| Account                | Platform        | Identifier      |
-|------------------------|-----------------|-----------------|
-| azmi.codes@gmail.com   | Claude Pro      | `claude-azmi`   |
-| figulazmi@gmail.com    | Claude Pro      | `claude-figul`  |
-| azmi.codes@gmail.com   | GitHub Copilot  | `copilot-azmi`  |
+| Account                 | Platform       | Identifier     |
+| ----------------------- | -------------- | -------------- |
+| azmi.codes@gmail.com    | Claude Pro     | `claude-azmi`  |
+| figurululazmi@gmail.com | Claude Pro     | `claude-figur` |
+| azmi.codes@gmail.com    | GitHub Copilot | `copilot-azmi` |
 
 ## Project Structure
 
@@ -52,18 +52,18 @@ token-monitor/
 
 ## API Endpoints
 
-| Method   | Endpoint          | Description                  |
-|----------|-------------------|------------------------------|
-| `GET`    | `/health`         | Health check                 |
-| `GET`    | `/stats`          | Aggregated stats by account, platform, model |
-| `POST`   | `/sessions`       | Log a session                |
-| `GET`    | `/sessions`       | List sessions (filterable)   |
-| `DELETE` | `/sessions/{id}`  | Delete a session             |
+| Method   | Endpoint         | Description                                  |
+| -------- | ---------------- | -------------------------------------------- |
+| `GET`    | `/health`        | Health check                                 |
+| `GET`    | `/stats`         | Aggregated stats by account, platform, model |
+| `POST`   | `/sessions`      | Log a session                                |
+| `GET`    | `/sessions`      | List sessions (filterable)                   |
+| `DELETE` | `/sessions/{id}` | Delete a session                             |
 
 ### Query params for `GET /sessions`
 
 | Param      | Example            |
-|------------|--------------------|
+| ---------- | ------------------ |
 | `platform` | `claude`           |
 | `account`  | `claude-azmi`      |
 | `project`  | `petrochina-eproc` |
@@ -123,13 +123,17 @@ Add to project `.claude/settings.json`:
 ```json
 {
   "hooks": {
-    "SessionEnd": [{
-      "matcher": "",
-      "hooks": [{
-        "type": "command",
-        "command": "CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/scripts/auto-logger.py"
-      }]
-    }]
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/scripts/auto-logger.py"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
