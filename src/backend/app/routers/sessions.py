@@ -1,11 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
+from pydantic import BaseModel
 
-from app.core.database import get_db
-from app.models import SessionLog
-from app.schemas import SessionLogCreate, SessionLogResponse
-from app.core.pricing import calc_cost
+from src.backend.app.core.database import get_db
+from src.backend.app.models import SessionLog
+from src.backend.app.schemas import SessionLogCreate, SessionLogResponse
+from src.backend.app.core.pricing import calc_cost
+
+
+class AccountUpdate(BaseModel):
+    account: Optional[str] = None
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -36,6 +41,17 @@ def list_sessions(
     if project:
         q = q.filter(SessionLog.project == project)
     return q.order_by(SessionLog.logged_at.desc()).limit(limit).all()
+
+
+@router.patch("/{session_id}/account", response_model=SessionLogResponse)
+def update_account(session_id: int, body: AccountUpdate, db: Session = Depends(get_db)):
+    log = db.query(SessionLog).filter(SessionLog.id == session_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Session not found")
+    log.account = body.account
+    db.commit()
+    db.refresh(log)
+    return log
 
 
 @router.delete("/{session_id}")

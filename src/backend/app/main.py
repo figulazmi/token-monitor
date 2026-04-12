@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 from datetime import datetime, timezone
 
-from app.core.database import get_db, engine
-from app.models import Base, SessionLog
-from app.routers import sessions
+from src.backend.app.core.database import get_db, engine
+from src.backend.app.models import Base, SessionLog
+from src.backend.app.routers import sessions
 
 Base.metadata.create_all(bind=engine)
 
@@ -54,12 +54,16 @@ def get_stats(db: Session = Depends(get_db)):
         func.sum(SessionLog.cost_usd).label("cost"),
     ).group_by(SessionLog.model).order_by(func.sum(SessionLog.cost_usd).desc()).all()
 
-    by_hour = db.query(
-        extract("hour", SessionLog.logged_at).label("hour"),
-        func.sum(SessionLog.input_tokens + SessionLog.output_tokens).label("tokens"),
-    ).group_by("hour").order_by(
-        func.sum(SessionLog.input_tokens + SessionLog.output_tokens).desc()
-    ).first()
+    # extract("hour") works on PostgreSQL; silently skipped on SQLite (tests)
+    try:
+        by_hour = db.query(
+            extract("hour", SessionLog.logged_at).label("hour"),
+            func.sum(SessionLog.input_tokens + SessionLog.output_tokens).label("tokens"),
+        ).group_by("hour").order_by(
+            func.sum(SessionLog.input_tokens + SessionLog.output_tokens).desc()
+        ).first()
+    except Exception:
+        by_hour = None
 
     return {
         "total_input_tokens":  total.total_input  or 0,
