@@ -1,18 +1,36 @@
 import { useState, useEffect, useCallback } from "react";
 
 // ── Config ───────────────────────────────────────────────────────────────────
-const API_URL = import.meta.env.VITE_API_URL || "http://192.168.18.169:8000";
+// Production: nginx proxies /api/* → token-api:8000/*
+// Development: vite proxies /api/* → localhost:8000/*
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 const MODELS = {
   claude: [
-    { id: "claude-opus-4-6",   label: "Claude Opus 4.6",   inputRate: 15,  outputRate: 75 },
-    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", inputRate: 3,   outputRate: 15 },
-    { id: "claude-haiku-4-5",  label: "Claude Haiku 4.5",  inputRate: 0.8, outputRate: 4  },
+    { id: "claude-opus-4-6",   label: "Claude Opus 4.6",   inputRate: 15,  outputRate: 75  },
+    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", inputRate: 3,   outputRate: 15  },
+    { id: "claude-haiku-4-5",  label: "Claude Haiku 4.5",  inputRate: 0.8, outputRate: 4   },
   ],
   copilot: [
     { id: "copilot-gpt4o", label: "Copilot (GPT-4o)", inputRate: 5,  outputRate: 15 },
     { id: "copilot-gpt4",  label: "Copilot (GPT-4)",  inputRate: 10, outputRate: 30 },
   ],
+};
+
+const ACCOUNTS = {
+  claude: [
+    { id: "claude-azmi",  label: "Claude Pro · azmi.codes"  },
+    { id: "claude-figul", label: "Claude Pro · figulazmi"   },
+  ],
+  copilot: [
+    { id: "copilot-azmi", label: "Copilot · azmi.codes" },
+  ],
+};
+
+const ACCOUNT_META = {
+  "claude-azmi":  { label: "Claude · azmi.codes",  color: "#FF6B35" },
+  "claude-figul": { label: "Claude · figulazmi",   color: "#9B59B6" },
+  "copilot-azmi": { label: "Copilot · azmi.codes", color: "#0078D4" },
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -41,11 +59,6 @@ function timeAgo(ts) {
   return "just now";
 }
 
-const PLATFORM_COLORS = {
-  claude:  { dot: "#FF6B35" },
-  copilot: { dot: "#0078D4" },
-};
-
 // ── Styles ───────────────────────────────────────────────────────────────────
 const S = {
   select: {
@@ -70,7 +83,9 @@ export default function TokenMonitor() {
   const [filter, setFilter]       = useState("all");
   const [activeTab, setActiveTab] = useState("dashboard");
   const [form, setForm] = useState({
-    platform: "claude", model: "claude-sonnet-4-6",
+    platform: "claude",
+    account:  "claude-azmi",
+    model:    "claude-sonnet-4-6",
     inputTokens: "", outputTokens: "", label: "", project: "",
   });
 
@@ -86,10 +101,10 @@ export default function TokenMonitor() {
       const sessData = await sessRes.json();
       const statData = await statRes.json();
 
-      // Normalise field names dari snake_case API ke camelCase lokal
       setSessions(sessData.map(s => ({
         id:           s.id,
         platform:     s.platform,
+        account:      s.account || null,
         model:        s.model,
         inputTokens:  s.input_tokens,
         outputTokens: s.output_tokens,
@@ -109,15 +124,26 @@ export default function TokenMonitor() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // ── Platform change → reset account + model ─────────────────────────────
+  function handlePlatformChange(p) {
+    setForm(f => ({
+      ...f,
+      platform: p,
+      account:  ACCOUNTS[p][0].id,
+      model:    MODELS[p][0].id,
+    }));
+  }
+
   // ── Log session baru via API ────────────────────────────────────────────
   async function handleAdd() {
     if (!form.inputTokens || !form.outputTokens || !form.label) return;
     try {
-      await fetch(`${API_URL}/log`, {
+      const res = await fetch(`${API_URL}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           platform:      form.platform,
+          account:       form.account,
           model:         form.model,
           input_tokens:  parseInt(form.inputTokens),
           output_tokens: parseInt(form.outputTokens),
@@ -125,7 +151,8 @@ export default function TokenMonitor() {
           project:       form.project || undefined,
         }),
       });
-      setForm({ platform: "claude", model: "claude-sonnet-4-6", inputTokens: "", outputTokens: "", label: "", project: "" });
+      if (!res.ok) throw new Error("API error");
+      setForm({ platform: "claude", account: "claude-azmi", model: "claude-sonnet-4-6", inputTokens: "", outputTokens: "", label: "", project: "" });
       setShowForm(false);
       fetchData();
     } catch {
@@ -137,19 +164,16 @@ export default function TokenMonitor() {
   async function handleDelete(id) {
     try {
       await fetch(`${API_URL}/sessions/${id}`, { method: "DELETE" });
-      fetchData();
+      setSessions(prev => prev.filter(s => s.id !== id));
     } catch { /* silent */ }
   }
 
   // ── Derived data ────────────────────────────────────────────────────────
-  const filtered   = filter === "all" ? sessions : sessions.filter(l => l.platform === filter);
+  const filtered    = filter === "all" ? sessions : sessions.filter(l => l.platform === filter);
   const totalInput  = filtered.reduce((s, l) => s + l.inputTokens, 0);
   const totalOutput = filtered.reduce((s, l) => s + l.outputTokens, 0);
   const totalCost   = filtered.reduce((s, l) => s + calcCost(l), 0);
   const totalTokens = totalInput + totalOutput;
-
-  const claudeCost  = sessions.filter(l => l.platform === "claude").reduce((s, l) => s + calcCost(l), 0);
-  const copilotCost = sessions.filter(l => l.platform === "copilot").reduce((s, l) => s + calcCost(l), 0);
 
   const hourBuckets = Array(24).fill(0);
   sessions.forEach(l => { hourBuckets[new Date(l.ts).getHours()] += l.inputTokens + l.outputTokens; });
@@ -163,7 +187,7 @@ export default function TokenMonitor() {
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: "100vh", background: "#0A0A0F", color: "#E8E8F0", fontFamily: "'DM Mono','Fira Code',monospace", padding: 0 }}>
+    <div style={{ minHeight: "100vh", background: "#0A0A0F", color: "#E8E8F0", fontFamily: "'DM Mono','Fira Code',monospace" }}>
 
       {/* Header */}
       <div style={{ borderBottom: "1px solid #1E1E2E", padding: "20px 28px 0", background: "#0D0D14" }}>
@@ -172,8 +196,8 @@ export default function TokenMonitor() {
             <div style={{ width: 36, height: 36, borderRadius: 8, background: "linear-gradient(135deg,#FF6B35,#0078D4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>⬡</div>
             <div>
               <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "0.05em", color: "#fff" }}>TOKEN MONITOR</div>
-              <div style={{ fontSize: 10, color: "#555", letterSpacing: "0.1em" }}>
-                {apiError ? "⚠ API OFFLINE" : `CLAUDE CODE · COPILOT · ${API_URL}`}
+              <div style={{ fontSize: 10, color: apiError ? "#cc4444" : "#555", letterSpacing: "0.1em" }}>
+                {apiError ? "⚠ API OFFLINE" : "CLAUDE CODE · COPILOT · 3 ACCOUNTS"}
               </div>
             </div>
           </div>
@@ -191,13 +215,13 @@ export default function TokenMonitor() {
         </div>
       </div>
 
-      <div style={{ padding: "24px 28px", maxWidth: 900, margin: "0 auto" }}>
+      <div style={{ padding: "24px 28px", maxWidth: 960, margin: "0 auto" }}>
 
         {/* Loading / Error */}
         {loading && <div style={{ textAlign: "center", color: "#555", padding: 40, fontSize: 12 }}>Connecting to API...</div>}
         {apiError && !loading && (
           <div style={{ background: "#1A0A0A", border: "1px solid #3A1A1A", borderRadius: 10, padding: 16, marginBottom: 20, fontSize: 11, color: "#cc6666" }}>
-            ⚠ Tidak bisa terhubung ke <code>{API_URL}</code>. Pastikan backend berjalan dan VM B1 reachable via Tailscale.
+            ⚠ Cannot connect to API at <code>{API_URL}</code>. Make sure the backend is running.
             <button onClick={fetchData} style={{ marginLeft: 12, background: "none", border: "1px solid #cc6666", borderRadius: 4, color: "#cc6666", padding: "4px 10px", cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>RETRY</button>
           </div>
         )}
@@ -206,35 +230,41 @@ export default function TokenMonitor() {
         {showForm && (
           <div style={{ background: "#0D0D14", border: "1px solid #1E1E2E", borderRadius: 10, padding: 20, marginBottom: 24 }}>
             <div style={{ fontSize: 11, letterSpacing: "0.1em", color: "#FF6B35", marginBottom: 16 }}>NEW SESSION LOG</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
               <div>
                 <div style={{ fontSize: 10, color: "#555", marginBottom: 4 }}>PLATFORM</div>
-                <select value={form.platform} onChange={e => { const p = e.target.value; setForm({ ...form, platform: p, model: MODELS[p][0].id }); }} style={S.select}>
+                <select value={form.platform} onChange={e => handlePlatformChange(e.target.value)} style={S.select}>
                   <option value="claude">Claude Code CLI</option>
                   <option value="copilot">GitHub Copilot</option>
                 </select>
               </div>
               <div>
+                <div style={{ fontSize: 10, color: "#555", marginBottom: 4 }}>ACCOUNT</div>
+                <select value={form.account} onChange={e => setForm(f => ({ ...f, account: e.target.value }))} style={S.select}>
+                  {ACCOUNTS[form.platform].map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
+                </select>
+              </div>
+              <div>
                 <div style={{ fontSize: 10, color: "#555", marginBottom: 4 }}>MODEL</div>
-                <select value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} style={S.select}>
+                <select value={form.model} onChange={e => setForm(f => ({ ...f, model: e.target.value }))} style={S.select}>
                   {MODELS[form.platform].map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                 </select>
               </div>
               <div>
                 <div style={{ fontSize: 10, color: "#555", marginBottom: 4 }}>INPUT TOKENS</div>
-                <input type="number" placeholder="12000" value={form.inputTokens} onChange={e => setForm({ ...form, inputTokens: e.target.value })} style={S.input} />
+                <input type="number" placeholder="12000" value={form.inputTokens} onChange={e => setForm(f => ({ ...f, inputTokens: e.target.value }))} style={S.input} />
               </div>
               <div>
                 <div style={{ fontSize: 10, color: "#555", marginBottom: 4 }}>OUTPUT TOKENS</div>
-                <input type="number" placeholder="3000" value={form.outputTokens} onChange={e => setForm({ ...form, outputTokens: e.target.value })} style={S.input} />
-              </div>
-              <div>
-                <div style={{ fontSize: 10, color: "#555", marginBottom: 4 }}>SESSION LABEL</div>
-                <input type="text" placeholder="e.g. SDL middleware refactor" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} style={S.input} />
+                <input type="number" placeholder="3000" value={form.outputTokens} onChange={e => setForm(f => ({ ...f, outputTokens: e.target.value }))} style={S.input} />
               </div>
               <div>
                 <div style={{ fontSize: 10, color: "#555", marginBottom: 4 }}>PROJECT</div>
-                <input type="text" placeholder="e.g. petrochina-eproc" value={form.project} onChange={e => setForm({ ...form, project: e.target.value })} style={S.input} />
+                <input type="text" placeholder="petrochina-eproc" value={form.project} onChange={e => setForm(f => ({ ...f, project: e.target.value }))} style={S.input} />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <div style={{ fontSize: 10, color: "#555", marginBottom: 4 }}>SESSION LABEL</div>
+                <input type="text" placeholder="e.g. SDL middleware refactor" value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} style={S.input} />
               </div>
             </div>
             {form.inputTokens && form.outputTokens && (
@@ -249,11 +279,11 @@ export default function TokenMonitor() {
         {!loading && activeTab === "dashboard" && (
           <>
             {/* Stats Row */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
               {[
-                { label: "TOTAL TOKENS",  value: fmtTokens(totalTokens), sub: `${fmtTokens(totalInput)} in · ${fmtTokens(totalOutput)} out` },
-                { label: "EST. COST",     value: fmtCost(totalCost),     sub: "at API rates" },
-                { label: "SESSIONS",      value: filtered.length,         sub: "from database" },
+                { label: "TOTAL TOKENS", value: fmtTokens(totalTokens), sub: `${fmtTokens(totalInput)} in · ${fmtTokens(totalOutput)} out` },
+                { label: "EST. COST",    value: fmtCost(totalCost),     sub: "at API rates" },
+                { label: "SESSIONS",     value: sessions.length,         sub: "from database" },
               ].map((s, i) => (
                 <div key={i} style={{ background: "#0D0D14", border: "1px solid #1E1E2E", borderRadius: 10, padding: "16px 18px" }}>
                   <div style={{ fontSize: 9, color: "#444", letterSpacing: "0.12em", marginBottom: 6 }}>{s.label}</div>
@@ -263,13 +293,38 @@ export default function TokenMonitor() {
               ))}
             </div>
 
+            {/* By Account — 3 accounts */}
+            <div style={{ background: "#0D0D14", border: "1px solid #1E1E2E", borderRadius: 10, padding: "16px 18px", marginBottom: 20 }}>
+              <div style={{ fontSize: 9, color: "#444", letterSpacing: "0.12em", marginBottom: 14 }}>BY ACCOUNT</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+                {(stats?.by_account || []).map(a => {
+                  const meta  = ACCOUNT_META[a.account] || { label: a.account, color: "#888" };
+                  const total = stats?.total_cost_usd || 0;
+                  const pct   = total > 0 ? Math.round(a.cost_usd / total * 100) : 0;
+                  return (
+                    <div key={a.account} style={{ borderLeft: `3px solid ${meta.color}`, paddingLeft: 12 }}>
+                      <div style={{ fontSize: 10, color: "#666", marginBottom: 4 }}>{meta.label}</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: meta.color }}>{fmtCost(a.cost_usd)}</div>
+                      <div style={{ fontSize: 10, color: "#444", marginTop: 2 }}>{a.sessions} sessions · {pct}%</div>
+                    </div>
+                  );
+                })}
+                {(!stats?.by_account || stats.by_account.length === 0) && (
+                  <div style={{ gridColumn: "1/-1", fontSize: 11, color: "#333", textAlign: "center", padding: 8 }}>No data yet</div>
+                )}
+              </div>
+            </div>
+
             {/* Platform Breakdown */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
               {[
-                { key: "claude",  label: "Claude Code CLI",  cost: claudeCost,  count: sessions.filter(l => l.platform === "claude").length,  color: "#FF6B35" },
-                { key: "copilot", label: "GitHub Copilot",   cost: copilotCost, count: sessions.filter(l => l.platform === "copilot").length, color: "#0078D4" },
+                { key: "claude",  label: "Claude Code CLI", color: "#FF6B35" },
+                { key: "copilot", label: "GitHub Copilot",  color: "#0078D4" },
               ].map(p => {
-                const pct = totalCost > 0 ? (p.cost / totalCost * 100).toFixed(0) : 0;
+                const stat = stats?.by_platform?.find(r => r.platform === p.key);
+                const cost = stat?.cost_usd || 0;
+                const total = stats?.total_cost_usd || 0;
+                const pct   = total > 0 ? Math.round(cost / total * 100) : 0;
                 return (
                   <div key={p.key} style={{ background: "#0D0D14", border: `1px solid ${p.color}22`, borderRadius: 10, padding: "16px 18px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -279,8 +334,8 @@ export default function TokenMonitor() {
                       </div>
                       <span style={{ fontSize: 10, color: p.color }}>{pct}%</span>
                     </div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: p.color }}>{fmtCost(p.cost)}</div>
-                    <div style={{ fontSize: 10, color: "#444", marginTop: 2 }}>{p.count} sessions</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: p.color }}>{fmtCost(cost)}</div>
+                    <div style={{ fontSize: 10, color: "#444", marginTop: 2 }}>{stat?.sessions || 0} sessions</div>
                     <div style={{ marginTop: 12, height: 4, background: "#1E1E2E", borderRadius: 2, overflow: "hidden" }}>
                       <div style={{ width: `${pct}%`, height: "100%", background: p.color, borderRadius: 2 }} />
                     </div>
@@ -289,12 +344,12 @@ export default function TokenMonitor() {
               })}
             </div>
 
-            {/* Peak Hours */}
-            <div style={{ background: "#0D0D14", border: "1px solid #1E1E2E", borderRadius: 10, padding: "16px 18px", marginBottom: 24 }}>
+            {/* Activity by Hour */}
+            <div style={{ background: "#0D0D14", border: "1px solid #1E1E2E", borderRadius: 10, padding: "16px 18px", marginBottom: 20 }}>
               <div style={{ fontSize: 9, color: "#444", letterSpacing: "0.12em", marginBottom: 14 }}>ACTIVITY BY HOUR</div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 48 }}>
                 {hourBuckets.map((val, h) => (
-                  <div key={h} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <div key={h} style={{ flex: 1 }}>
                     <div style={{ width: "100%", height: `${Math.max(4, (val / maxBucket) * 44)}px`, background: h === peakHour ? "#FF6B35" : "#1E1E2E", borderRadius: 2 }} />
                   </div>
                 ))}
@@ -316,25 +371,25 @@ export default function TokenMonitor() {
               {topSessions.map((l, i) => {
                 const total = l.inputTokens + l.outputTokens;
                 const pct   = Math.round(total / barMax * 100);
-                const color = PLATFORM_COLORS[l.platform]?.dot || "#888";
+                const meta  = ACCOUNT_META[l.account] || { color: "#888" };
                 return (
                   <div key={l.id} style={{ marginBottom: 14 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 10, color: "#333" }}>#{i + 1}</span>
-                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: color }} />
+                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: meta.color }} />
                         <span style={{ fontSize: 11, color: "#ccc" }}>{l.label}</span>
                         {l.project && <span style={{ fontSize: 9, color: "#333", background: "#1A1A24", padding: "2px 6px", borderRadius: 4 }}>{l.project}</span>}
                       </div>
-                      <span style={{ fontSize: 11, color }}>{fmtTokens(total)}</span>
+                      <span style={{ fontSize: 11, color: meta.color }}>{fmtTokens(total)}</span>
                     </div>
                     <div style={{ height: 3, background: "#1A1A24", borderRadius: 2, overflow: "hidden" }}>
-                      <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 2 }} />
+                      <div style={{ width: `${pct}%`, height: "100%", background: meta.color, borderRadius: 2 }} />
                     </div>
                   </div>
                 );
               })}
-              {sessions.length === 0 && <div style={{ fontSize: 11, color: "#333", textAlign: "center", padding: 20 }}>Belum ada session. Mulai coding!</div>}
+              {sessions.length === 0 && <div style={{ fontSize: 11, color: "#333", textAlign: "center", padding: 20 }}>No sessions yet. Start coding!</div>}
             </div>
           </>
         )}
@@ -347,17 +402,17 @@ export default function TokenMonitor() {
               ))}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {[...filtered].reverse().map(l => {
+              {[...filtered].map(l => {
                 const total = l.inputTokens + l.outputTokens;
                 const cost  = calcCost(l);
-                const color = PLATFORM_COLORS[l.platform]?.dot || "#888";
+                const meta  = ACCOUNT_META[l.account] || { color: "#888", label: l.platform };
                 return (
                   <div key={l.id} style={{ background: "#0D0D14", border: "1px solid #1E1E2E", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: meta.color, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, color: "#ddd", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.label}</div>
                       <div style={{ fontSize: 10, color: "#444" }}>
-                        {l.platform === "claude" ? "Claude Code" : "Copilot"}
+                        {meta.label}
                         {l.project && ` · ${l.project}`}
                         {l.gitBranch && ` · ${l.gitBranch}`}
                         {" · "}{timeAgo(l.ts)}
@@ -365,19 +420,19 @@ export default function TokenMonitor() {
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{fmtTokens(total)}</div>
-                      <div style={{ fontSize: 10, color }}>{fmtCost(cost)}</div>
+                      <div style={{ fontSize: 10, color: meta.color }}>{fmtCost(cost)}</div>
                     </div>
                     <button onClick={() => handleDelete(l.id)} style={{ background: "none", border: "none", color: "#2A2A3A", cursor: "pointer", fontSize: 14, padding: 4, flexShrink: 0 }} title="Delete">✕</button>
                   </div>
                 );
               })}
-              {filtered.length === 0 && <div style={{ fontSize: 11, color: "#333", textAlign: "center", padding: 40 }}>Tidak ada session.</div>}
+              {filtered.length === 0 && <div style={{ fontSize: 11, color: "#333", textAlign: "center", padding: 40 }}>No sessions.</div>}
             </div>
           </>
         )}
 
         <div style={{ marginTop: 24, fontSize: 10, color: "#2A2A3A", textAlign: "center" }}>
-          {apiError ? `Offline mode · ${API_URL}` : `Connected · ${API_URL}`}
+          {apiError ? `Offline · ${API_URL}` : `Connected · ${API_URL}`}
         </div>
       </div>
     </div>
