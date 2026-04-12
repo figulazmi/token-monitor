@@ -30,6 +30,12 @@ import subprocess
 import sys
 from datetime import datetime
 
+# Fix Windows console encoding — prevents UnicodeEncodeError on cp1252 terminals
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # ── Config ───────────────────────────────────────────────────────────────────
 API_URL  = os.getenv("TOKEN_MONITOR_URL", "http://192.168.18.169:8010")
 PLATFORM = "claude"
@@ -118,6 +124,52 @@ def post_log(payload: dict) -> bool:
         return False
 
 
+def main_checkpoint():
+    """
+    Called via PostToolUse Write hook.
+    Detects when a .claude/summaries/*.md file is written (RAG knowledge capture)
+    and posts a checkpoint entry to the Token Monitor API.
+
+    Stdin format (PostToolUse):
+      { "tool_name": "Write", "tool_input": { "file_path": "...", "content": "..." }, ... }
+    """
+    try:
+        raw = sys.stdin.read()
+        hook_data = json.loads(raw) if raw.strip() else {}
+    except json.JSONDecodeError:
+        hook_data = {}
+
+    tool_input = hook_data.get("tool_input", {})
+    file_path  = tool_input.get("file_path", "").replace("\\", "/")
+
+    # Only act on .claude/summaries/*.md writes
+    if "summaries/" not in file_path or not file_path.endswith(".md"):
+        sys.exit(0)
+
+    filename   = os.path.basename(file_path)
+    account    = get_claude_account()
+    git_branch = get_git_branch()
+    project    = PROJECT or os.path.basename(os.getcwd())
+
+    payload = {
+        "platform":      PLATFORM,
+        "account":       account,
+        "model":         MODEL,
+        "input_tokens":  0,
+        "output_tokens": 0,
+        "label":         f"RAG Capture: {filename}",
+        "git_branch":    git_branch,
+        "project":       project,
+    }
+
+    success = post_log(payload)
+    if success:
+        account_disp = account or "UNASSIGNED"
+        print(f"[auto-logger] RAG checkpoint logged: {filename} [{account_disp}] -> {API_URL}")
+    else:
+        print(f"[auto-logger] Failed to post RAG checkpoint to {API_URL}", file=sys.stderr)
+
+
 def main():
     # Read hook input from stdin
     # Format: { "session_id": "...", "usage": { "input_tokens": N, "output_tokens": N } }
@@ -158,11 +210,14 @@ def main():
         print(
             f"[auto-logger] Logged {total:,} tokens "
             f"({input_tokens:,} in / {output_tokens:,} out) "
-            f"[{account_disp}] → {API_URL}",
+            f"[{account_disp}] -> {API_URL}",
         )
     else:
         print(f"[auto-logger] Failed to post log to {API_URL}", file=sys.stderr)
 
 
 if __name__ == "__main__":
-    main()
+    if "--checkpoint" in sys.argv:
+        main_checkpoint()
+    else:
+        main()
