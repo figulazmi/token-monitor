@@ -2,6 +2,25 @@
 
 This file provides guidance to Claude Code when working in this repository.
 
+## MANDATORY: Session Start (run this FIRST, every session)
+
+Before doing anything else — before reading files, before answering questions:
+
+**Step 1 — Load Qdrant tool schema** (it is deferred by default and must be loaded manually):
+```
+ToolSearch("select:mcp__qdrant-knowledge__search_knowledge")
+```
+
+**Step 2 — Query Qdrant for relevant context** using `project="homelab"`:
+```
+search_knowledge("token monitor homelab infrastructure setup architecture", project="homelab")
+```
+
+Only after these two steps are done may you read source files.
+If you skip Step 1, you CANNOT call `search_knowledge` — the tool will fail silently.
+
+---
+
 # Project Overview
 
 **token-monitor** — Token usage monitoring for Claude Code CLI + GitHub Copilot across multiple accounts.
@@ -202,6 +221,31 @@ Add to each project's `.claude/settings.json`:
 Hook fires on: `/exit`, Ctrl-C, `/clear`, session timeout.
 If API is unreachable when hook fires — the log is **lost** (no retry).
 
+### PostToolUse Write Hook (RAG Capture Auto-Log)
+
+Fires automatically when `/rag-knowledge-capture-cli` writes a `.claude/summaries/*.md` file.
+Logs a `"RAG Capture: [filename]"` entry to Token Monitor (0 tokens — serves as a session checkpoint timestamp).
+
+Add to global `~/.claude/settings.json` alongside the `SessionEnd` hook:
+
+```json
+"PostToolUse": [
+  {
+    "matcher": "Write",
+    "hooks": [
+      {
+        "type": "command",
+        "command": "python \"C:\\Users\\Clandesitine\\source\\repos\\token-monitor\\src\\scripts\\auto-logger.py\" --checkpoint"
+      }
+    ]
+  }
+]
+```
+
+> **Windows note:** Path must be quoted (`\"...\"`). Unquoted Windows paths in bash have backslashes stripped, causing Python to resolve an incorrect path.
+
+The script silently exits (no API call) if the written file is not under `summaries/`.
+
 ## External Brain (Qdrant RAG)
 
 You have access to MCP tool `search_knowledge`.
@@ -252,3 +296,20 @@ Before ending any session or using /clear:
 2. `@.claude/skills/rag-knowledge-capture-cli/SKILL.md` — summarize session into RAG chunks
 3. Save to `.claude/summaries/YYYY-MM-DD-[topic].md`
 4. Run: `bash ~/scripts/push-to-qdrant.sh .claude/summaries/[file]`
+
+### Auto-logging trigger flow
+
+```
+/rag-knowledge-capture-cli
+  └─ Write .claude/summaries/YYYY-MM-DD-[topic].md
+       └─ PostToolUse Write hook fires
+            └─ auto-logger.py --checkpoint
+                 └─ POST /sessions  label="RAG Capture: [filename]", tokens=0
+                      └─ Token Monitor dashboard updated (checkpoint marker)
+
+/clear  or  /exit
+  └─ SessionEnd hook fires
+       └─ auto-logger.py  (stdin = session token usage from Claude Code)
+            └─ POST /sessions  label=[last commit msg], tokens=[actual count]
+                 └─ Token Monitor dashboard updated (full session log)
+```

@@ -43,9 +43,12 @@ MODEL    = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
 PROJECT  = os.getenv("TOKEN_MONITOR_PROJECT", "")
 
 # Email → account identifier mapping
+# Add team members here before distributing the repo.
+# Format: "email@domain.com": "claude-identifier"
 EMAIL_ACCOUNT_MAP: dict[str, str] = {
     "azmi.codes@gmail.com":    "claude-azmi",
     "figurululazmi@gmail.com": "claude-figur",
+    # "teammate@email.com":   "claude-teammate",   # ← add team members here
 }
 
 

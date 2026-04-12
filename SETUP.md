@@ -145,6 +145,34 @@ CLAUDE_ACCOUNT=claude-azmi CLAUDE_MODEL=claude-opus-4-6 TOKEN_MONITOR_PROJECT=ho
   python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py
 ```
 
+### 4e. PostToolUse Write Hook (RAG Capture checkpoint)
+
+Logs a checkpoint entry to Token Monitor whenever `/rag-knowledge-capture-cli` writes a summary file to `.claude/summaries/`. The entry has `tokens=0` but serves as a visible timestamp marker in the dashboard.
+
+Add to **global** `~/.claude/settings.json` alongside the existing `SessionEnd` hook:
+
+```json
+"PostToolUse": [
+  {
+    "matcher": "Write",
+    "hooks": [
+      {
+        "type": "command",
+        "command": "python \"C:\\Users\\Clandesitine\\source\\repos\\token-monitor\\src\\scripts\\auto-logger.py\" --checkpoint"
+      }
+    ]
+  }
+]
+```
+
+> **Windows / bash path note:** The path must be wrapped in `\"...\"`. Without quotes, bash strips backslashes from Windows paths (`\s` → `s`, `\r` → `r`, etc.), causing Python to resolve an incorrect path relative to CWD.
+
+**How `--checkpoint` mode works:**
+- Reads PostToolUse stdin: `{ "tool_input": { "file_path": "..." } }`
+- Only acts if `file_path` contains `summaries/` and ends in `.md`
+- Posts: `label="RAG Capture: [filename]"`, `input_tokens=0`, `output_tokens=0`
+- Any other `Write` call → silent no-op (exits immediately)
+
 ---
 
 ## 5. Manual Testing
