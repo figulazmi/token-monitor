@@ -14,11 +14,11 @@ Sessions are auto-logged via Claude Code `SessionEnd` hook → FastAPI → Postg
 
 ## Accounts Monitored
 
-| Account                  | Platform       | `CLAUDE_ACCOUNT`  |
-| ------------------------ | -------------- | ----------------- |
-| azmi.codes@gmail.com     | Claude Pro     | `claude-azmi`     |
-| figurululazmi@gmail.com  | Claude Pro     | `claude-figul`    |
-| azmi.codes@gmail.com     | GitHub Copilot | `copilot-azmi`    |
+| Account                 | Platform       | `CLAUDE_ACCOUNT` |
+| ----------------------- | -------------- | ---------------- |
+| azmi.codes@gmail.com    | Claude Pro     | `claude-azmi`    |
+| figurululazmi@gmail.com | Claude Pro     | `claude-figur`   |
+| azmi.codes@gmail.com    | GitHub Copilot | `copilot-azmi`   |
 
 ## Project Structure
 
@@ -109,7 +109,7 @@ docker compose down -v
 ## VM B1 Deployment
 
 - **Dashboard:** `http://192.168.18.169:3000`
-- **API:**       `http://192.168.18.169:8000`
+- **API:** `http://192.168.18.169:8000`
 
 ### First Deploy (one-time)
 
@@ -151,43 +151,53 @@ docker compose up -d --build
 Add to each project's `.claude/settings.json`:
 
 **Account: azmi.codes@gmail.com**
+
 ```json
 {
   "hooks": {
-    "SessionEnd": [{
-      "matcher": "",
-      "hooks": [{
-        "type": "command",
-        "command": "CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/token-monitor/scripts/auto-logger.py"
-      }]
-    }]
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/token-monitor/scripts/auto-logger.py"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
 **Account: figurululazmi@gmail.com**
+
 ```json
 {
   "hooks": {
-    "SessionEnd": [{
-      "matcher": "",
-      "hooks": [{
-        "type": "command",
-        "command": "CLAUDE_ACCOUNT=claude-figul TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/token-monitor/scripts/auto-logger.py"
-      }]
-    }]
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_ACCOUNT=claude-figur TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/token-monitor/scripts/auto-logger.py"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
 ### Hook Environment Variables
 
-| Variable                | Default                       | Description                          |
-| ----------------------- | ----------------------------- | ------------------------------------ |
-| `TOKEN_MONITOR_URL`     | `http://192.168.18.169:8000`  | Backend API URL                      |
-| `CLAUDE_ACCOUNT`        | `claude-azmi`                 | Account identifier (see table above) |
-| `CLAUDE_MODEL`          | `claude-sonnet-4-6`           | Model used in the session            |
-| `TOKEN_MONITOR_PROJECT` | CWD folder name               | Project name tag                     |
+| Variable                | Default                      | Description                          |
+| ----------------------- | ---------------------------- | ------------------------------------ |
+| `TOKEN_MONITOR_URL`     | `http://192.168.18.169:8000` | Backend API URL                      |
+| `CLAUDE_ACCOUNT`        | `claude-azmi`                | Account identifier (see table above) |
+| `CLAUDE_MODEL`          | `claude-sonnet-4-6`          | Model used in the session            |
+| `TOKEN_MONITOR_PROJECT` | CWD folder name              | Project name tag                     |
 
 Hook fires on: `/exit`, Ctrl-C, `/clear`, session timeout.
 If API is unreachable when hook fires — the log is **lost** (no retry).

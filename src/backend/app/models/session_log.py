@@ -7,7 +7,7 @@ class SessionLog(Base):
 
     id            = Column(Integer, primary_key=True, index=True)
     platform      = Column(String, nullable=False)        # "claude" | "copilot"
-    account       = Column(String, nullable=True)         # "claude-azmi" | "claude-figul" | "copilot-azmi"
+    account       = Column(String, nullable=True)         # "claude-azmi" | "claude-figur" | "copilot-azmi"
     model         = Column(String, nullable=False)        # e.g. "claude-sonnet-4-6"
     input_tokens  = Column(BigInteger, nullable=False)
     output_tokens = Column(BigInteger, nullable=False)

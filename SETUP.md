@@ -1,6 +1,6 @@
 # Token Monitor — Setup & Deployment Guide
 
-*Authored by: Figur Ulul Azmi*
+_Authored by: Figur Ulul Azmi_
 
 ---
 
@@ -29,7 +29,7 @@ curl http://localhost:8000/stats
 ```
 
 **Dashboard:** http://192.168.18.169:3000  
-**API:**       http://192.168.18.169:8000
+**API:** http://192.168.18.169:8000
 
 ---
 
@@ -84,49 +84,59 @@ chmod +x /opt/homelab/token-monitor/scripts/auto-logger.py
 Add to each project's `.claude/settings.json`:
 
 **Account: azmi.codes@gmail.com**
+
 ```json
 {
   "hooks": {
-    "SessionEnd": [{
-      "matcher": "",
-      "hooks": [{
-        "type": "command",
-        "command": "CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/token-monitor/scripts/auto-logger.py"
-      }]
-    }]
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/token-monitor/scripts/auto-logger.py"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
-**Account: figulazmi@gmail.com**
+**Account: figurululazmi@gmail.com**
+
 ```json
 {
   "hooks": {
-    "SessionEnd": [{
-      "matcher": "",
-      "hooks": [{
-        "type": "command",
-        "command": "CLAUDE_ACCOUNT=claude-figul TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/token-monitor/scripts/auto-logger.py"
-      }]
-    }]
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_ACCOUNT=claude-figur TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/token-monitor/scripts/auto-logger.py"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
 ### 4c. Environment variables
 
-| Variable               | Default                      | Description                             |
-|------------------------|------------------------------|-----------------------------------------|
-| `TOKEN_MONITOR_URL`    | `http://192.168.18.169:8000` | Backend API URL                         |
-| `CLAUDE_ACCOUNT`       | `claude-azmi`                | Account identifier (see table below)    |
-| `CLAUDE_MODEL`         | `claude-sonnet-4-6`          | Model used in the session               |
-| `TOKEN_MONITOR_PROJECT`| CWD folder name              | Project name tag                        |
+| Variable                | Default                      | Description                          |
+| ----------------------- | ---------------------------- | ------------------------------------ |
+| `TOKEN_MONITOR_URL`     | `http://192.168.18.169:8000` | Backend API URL                      |
+| `CLAUDE_ACCOUNT`        | `claude-azmi`                | Account identifier (see table below) |
+| `CLAUDE_MODEL`          | `claude-sonnet-4-6`          | Model used in the session            |
+| `TOKEN_MONITOR_PROJECT` | CWD folder name              | Project name tag                     |
 
-| `CLAUDE_ACCOUNT` value | Account                 |
-|------------------------|-------------------------|
-| `claude-azmi`          | Claude Pro azmi.codes   |
-| `claude-figul`         | Claude Pro figulazmi    |
-| `copilot-azmi`         | Copilot azmi.codes      |
+| `CLAUDE_ACCOUNT` value | Account                  |
+| ---------------------- | ------------------------ |
+| `claude-azmi`          | Claude Pro azmi.codes    |
+| `claude-figur`         | Claude Pro figurululazmi |
+| `copilot-azmi`         | Copilot azmi.codes       |
 
 ### 4d. Override model per project
 

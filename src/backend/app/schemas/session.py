@@ -5,7 +5,7 @@ from datetime import datetime
 
 class SessionLogCreate(BaseModel):
     platform:      str
-    account:       Optional[str] = None   # "claude-azmi" | "claude-figul" | "copilot-azmi"
+    account:       Optional[str] = None   # "claude-azmi" | "claude-figur" | "copilot-azmi"
     model:         str
     input_tokens:  int
     output_tokens: int
