@@ -75,13 +75,14 @@ const S = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function TokenMonitor() {
-  const [sessions, setSessions]   = useState([]);
-  const [stats, setStats]         = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [apiError, setApiError]   = useState(false);
-  const [showForm, setShowForm]   = useState(false);
-  const [filter, setFilter]       = useState("all");
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [sessions, setSessions]         = useState([]);
+  const [stats, setStats]               = useState(null);
+  const [loading, setLoading]           = useState(true);
+  const [apiError, setApiError]         = useState(false);
+  const [showForm, setShowForm]         = useState(false);
+  const [filter, setFilter]             = useState("all");
+  const [activeTab, setActiveTab]       = useState("dashboard");
+  const [assigningId, setAssigningId]   = useState(null); // session id being assigned
   const [form, setForm] = useState({
     platform: "claude",
     account:  "claude-azmi",
@@ -168,8 +169,26 @@ export default function TokenMonitor() {
     } catch { /* silent */ }
   }
 
+  // ── Assign account to UNASSIGNED session ────────────────────────────────
+  async function handleAssignAccount(id, account) {
+    try {
+      const res = await fetch(`${API_URL}/sessions/${id}/account`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account }),
+      });
+      if (!res.ok) throw new Error();
+      setSessions(prev => prev.map(s => s.id === id ? { ...s, account } : s));
+      setAssigningId(null);
+      fetchData(); // refresh stats
+    } catch { /* silent */ }
+  }
+
   // ── Derived data ────────────────────────────────────────────────────────
-  const filtered    = filter === "all" ? sessions : sessions.filter(l => l.platform === filter);
+  const unassignedCount = sessions.filter(l => !l.account).length;
+  const filtered = filter === "all"        ? sessions
+                 : filter === "unassigned" ? sessions.filter(l => !l.account)
+                 : sessions.filter(l => l.platform === filter);
   const totalInput  = filtered.reduce((s, l) => s + l.inputTokens, 0);
   const totalOutput = filtered.reduce((s, l) => s + l.outputTokens, 0);
   const totalCost   = filtered.reduce((s, l) => s + calcCost(l), 0);
@@ -396,33 +415,66 @@ export default function TokenMonitor() {
 
         {!loading && activeTab === "sessions" && (
           <>
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
               {["all", "claude", "copilot"].map(f => (
                 <button key={f} onClick={() => setFilter(f)} style={{ background: filter === f ? "#1E1E2E" : "none", border: `1px solid ${filter === f ? "#FF6B35" : "#1E1E2E"}`, borderRadius: 6, color: filter === f ? "#FF6B35" : "#444", padding: "6px 14px", fontSize: 10, cursor: "pointer", letterSpacing: "0.08em", fontFamily: "inherit", textTransform: "uppercase" }}>{f}</button>
               ))}
+              {unassignedCount > 0 && (
+                <button onClick={() => setFilter("unassigned")} style={{ background: filter === "unassigned" ? "#2A1F00" : "none", border: `1px solid ${filter === "unassigned" ? "#F0A500" : "#2A2200"}`, borderRadius: 6, color: "#F0A500", padding: "6px 14px", fontSize: 10, cursor: "pointer", letterSpacing: "0.08em", fontFamily: "inherit" }}>
+                  ⚠ UNASSIGNED ({unassignedCount})
+                </button>
+              )}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {[...filtered].map(l => {
-                const total = l.inputTokens + l.outputTokens;
-                const cost  = calcCost(l);
-                const meta  = ACCOUNT_META[l.account] || { color: "#888", label: l.platform };
+                const total      = l.inputTokens + l.outputTokens;
+                const cost       = calcCost(l);
+                const meta       = ACCOUNT_META[l.account] || { color: "#888", label: l.platform };
+                const unassigned = !l.account;
+                const isAssigning = assigningId === l.id;
                 return (
-                  <div key={l.id} style={{ background: "#0D0D14", border: "1px solid #1E1E2E", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: meta.color, flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, color: "#ddd", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.label}</div>
-                      <div style={{ fontSize: 10, color: "#444" }}>
-                        {meta.label}
-                        {l.project && ` · ${l.project}`}
-                        {l.gitBranch && ` · ${l.gitBranch}`}
-                        {" · "}{timeAgo(l.ts)}
+                  <div key={l.id} style={{ background: "#0D0D14", border: `1px solid ${unassigned ? "#2A2200" : "#1E1E2E"}`, borderRadius: 10, padding: "14px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: unassigned ? "#F0A500" : meta.color, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, color: "#ddd", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.label}</div>
+                        <div style={{ fontSize: 10, color: "#444", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                          {unassigned
+                            ? <span
+                                onClick={() => setAssigningId(isAssigning ? null : l.id)}
+                                style={{ color: "#F0A500", border: "1px solid #2A2200", borderRadius: 4, padding: "1px 7px", cursor: "pointer", fontSize: 9, letterSpacing: "0.08em" }}
+                                title="Click to assign account"
+                              >⚠ UNASSIGNED</span>
+                            : <span style={{ color: meta.color }}>{meta.label}</span>
+                          }
+                          {l.project && <span>· {l.project}</span>}
+                          {l.gitBranch && <span>· {l.gitBranch}</span>}
+                          <span>· {timeAgo(l.ts)}</span>
+                        </div>
                       </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{fmtTokens(total)}</div>
+                        <div style={{ fontSize: 10, color: unassigned ? "#F0A500" : meta.color }}>{fmtCost(cost)}</div>
+                      </div>
+                      <button onClick={() => handleDelete(l.id)} style={{ background: "none", border: "none", color: "#2A2A3A", cursor: "pointer", fontSize: 14, padding: 4, flexShrink: 0 }} title="Delete">✕</button>
                     </div>
-                    <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{fmtTokens(total)}</div>
-                      <div style={{ fontSize: 10, color: meta.color }}>{fmtCost(cost)}</div>
-                    </div>
-                    <button onClick={() => handleDelete(l.id)} style={{ background: "none", border: "none", color: "#2A2A3A", cursor: "pointer", fontSize: 14, padding: 4, flexShrink: 0 }} title="Delete">✕</button>
+
+                    {/* Inline account picker — shows when UNASSIGNED badge is clicked */}
+                    {isAssigning && (
+                      <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #1E1E2E", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 10, color: "#555" }}>ASSIGN TO:</span>
+                        {Object.entries(ACCOUNT_META).map(([id, m]) => (
+                          <button key={id} onClick={() => handleAssignAccount(l.id, id)}
+                            style={{ background: "#0A0A0F", border: `1px solid ${m.color}44`, borderRadius: 6, color: m.color, padding: "5px 12px", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>
+                            {m.label}
+                          </button>
+                        ))}
+                        <button onClick={() => setAssigningId(null)}
+                          style={{ background: "none", border: "1px solid #1E1E2E", borderRadius: 6, color: "#444", padding: "5px 10px", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
