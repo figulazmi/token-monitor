@@ -40,6 +40,16 @@
       "source": "boshi-xixixi/TraeSkill",
       "sourceType": "github",
       "computedHash": "3893f9b73632f3099e81f5d5d4b3b59a813d06a8da1f08ebb6624a5a70578232"
+    },
+    "web-artifacts-builder": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "computedHash": "8045be97d4997dc8952ed57be8e90917d1a646a0ac6282a2347b3376b3e848b0"
+    },
+    "web-security-testing": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "computedHash": "e1c58c9ece05c7225532eb2bc104cb6500c24dfb7d52bddec6ea1dc826813eb1"
     }
   }
 }
