@@ -4,26 +4,19 @@ auto-logger.py — Claude Code SessionEnd hook
 Reads token usage from hook stdin then POSTs to Token Monitor API.
 
 Standalone script — no dependencies on the repo. Download once, never update.
+Install via: python install.py  (from the token-monitor repo root)
+
+Config priority (each level overrides the one below):
+  1. Environment variables   — TOKEN_MONITOR_URL, CLAUDE_ACCOUNT, CLAUDE_MODEL, TOKEN_MONITOR_PROJECT
+  2. ~/.claude/token-monitor.json  — written by install.py
+  3. Built-in defaults       — http://localhost:8010, auto-detect account
 
 Account detection priority:
-  1. CLAUDE_ACCOUNT env var (set at hook install time via setup-hook.py)
+  1. CLAUDE_ACCOUNT env var  (or "account" in token-monitor.json)
   2. `claude auth status` → email → slug (local-part, dots→dashes, lowercase)
      e.g. azmi.codes@gmail.com → "azmi-codes"
           figurululazmi@gmail.com → "figurululazmi"
   3. None (logged as UNASSIGNED — assignable from dashboard)
-
-Setup in global ~/.claude/settings.json (applies to ALL projects):
-  {
-    "hooks": {
-      "SessionEnd": [{
-        "matcher": "",
-        "hooks": [{
-          "type": "command",
-          "command": "python C:\\Users\\Clandesitine\\source\\repos\\token-monitor\\scripts\\auto-logger.py"
-        }]
-      }]
-    }
-  }
 
 Docs: https://docs.anthropic.com/en/docs/claude-code/hooks
 """
@@ -41,19 +34,30 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
+# ── Config file (written by install.py) ─────────────────────────────────────
+def _load_config() -> dict:
+    cfg_path = os.path.join(os.path.expanduser("~"), ".claude", "token-monitor.json")
+    try:
+        with open(cfg_path, encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+_cfg = _load_config()
+
 # ── Config ───────────────────────────────────────────────────────────────────
-API_URL  = os.getenv("TOKEN_MONITOR_URL", "http://192.168.18.169:8010")
+API_URL  = os.getenv("TOKEN_MONITOR_URL") or _cfg.get("api_url", "http://localhost:8010")
 PLATFORM = "claude"
-MODEL    = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
-PROJECT  = os.getenv("TOKEN_MONITOR_PROJECT", "")
+MODEL    = os.getenv("CLAUDE_MODEL")     or _cfg.get("model", "claude-sonnet-4-6")
+PROJECT  = os.getenv("TOKEN_MONITOR_PROJECT") or _cfg.get("project", "")
 
 def get_claude_account() -> str | None:
     """
     Detect which Claude account is logged in.
-    Priority: CLAUDE_ACCOUNT env var > email-derived slug > None (UNASSIGNED).
+    Priority: CLAUDE_ACCOUNT env var > config file > email-derived slug > None (UNASSIGNED).
     """
-    # 1. Explicit override (set at hook install time via setup-hook.py or manual config)
-    override = os.getenv("CLAUDE_ACCOUNT")
+    # 1. Explicit env var override
+    override = os.getenv("CLAUDE_ACCOUNT") or _cfg.get("account")
     if override:
         return override
 

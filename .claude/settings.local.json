@@ -108,7 +108,8 @@
       "Bash(mkdir -p \"C:/Users/Clandesitine/.claude/commands\")",
       "Bash(mkdir -p \"C:/Users/Clandesitine/source/repos/token-monitor/.claude/commands\")",
       "Bash(cp \"C:/Users/Clandesitine/source/repos/token-monitor/.claude/skills/rag-knowledge-capture-cli/SKILL.md\" \"C:/Users/Clandesitine/.claude/commands/rag-knowledge-capture-cli.md\")",
-      "Bash(cp \"C:/Users/Clandesitine/source/repos/token-monitor/.claude/skills/rag-knowledge-capture-cli/SKILL.md\" \"C:/Users/Clandesitine/source/repos/token-monitor/.claude/commands/rag-knowledge-capture-cli.md\")"
+      "Bash(cp \"C:/Users/Clandesitine/source/repos/token-monitor/.claude/skills/rag-knowledge-capture-cli/SKILL.md\" \"C:/Users/Clandesitine/source/repos/token-monitor/.claude/commands/rag-knowledge-capture-cli.md\")",
+      "WebFetch(domain:skillsmp.com)"
     ]
   },
   "enabledPlugins": {
