@@ -33,11 +33,13 @@ Sessions are auto-logged via Claude Code `SessionEnd` hook → FastAPI → Postg
 
 ## Accounts Monitored
 
-| Account                 | Platform       | `CLAUDE_ACCOUNT` |
-| ----------------------- | -------------- | ---------------- |
-| azmi.codes@gmail.com    | Claude Pro     | `claude-azmi`    |
-| figurululazmi@gmail.com | Claude Pro     | `claude-figur`   |
-| azmi.codes@gmail.com    | GitHub Copilot | `copilot-azmi`   |
+Account identifiers are auto-detected from `claude auth status` (email local-part, dots→dashes).
+
+| Account                 | Platform       | Auto-detected identifier |
+| ----------------------- | -------------- | ------------------------ |
+| azmi.codes@gmail.com    | Claude Pro     | `azmi-codes`             |
+| figurululazmi@gmail.com | Claude Pro     | `figurululazmi`          |
+| azmi.codes@gmail.com    | GitHub Copilot | set via `CLAUDE_ACCOUNT=copilot-azmi` |
 
 ## Project Structure
 
@@ -88,7 +90,7 @@ token-monitor/
 | Param      | Example            |
 | ---------- | ------------------ |
 | `platform` | `claude`           |
-| `account`  | `claude-azmi`      |
+| `account`  | `figurululazmi`    |
 | `project`  | `petrochina-eproc` |
 | `limit`    | `50`               |
 
@@ -165,31 +167,11 @@ docker compose up -d --build
 - Secrets: `VM_B1_HOST`, `VM_B1_USER`, `VM_B1_SSH_KEY` stored in Gitea repo secrets
 - Optional custom DB password: create `/opt/homelab/infrastructure/token-monitor/.env` with `DB_PASSWORD=...`
 
-## Hook Setup (per Claude account)
+## Hook Setup
 
-Add to each project's `.claude/settings.json`:
+Add to **global** `~/.claude/settings.json` (applies to all projects):
 
-**Account: azmi.codes@gmail.com**
-
-```json
-{
-  "hooks": {
-    "SessionEnd": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-**Account: figurululazmi@gmail.com**
+**Windows (cmd.exe — no env-var prefix, account auto-detected from `claude auth status`)**
 
 ```json
 {
@@ -200,7 +182,7 @@ Add to each project's `.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_ACCOUNT=claude-figur TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py"
+            "command": "python \"C:\\Users\\Clandesitine\\source\\repos\\token-monitor\\src\\scripts\\auto-logger.py\""
           }
         ]
       }
@@ -208,13 +190,35 @@ Add to each project's `.claude/settings.json`:
   }
 }
 ```
+
+**Linux/macOS (bash — set `CLAUDE_ACCOUNT` only if auto-detection is insufficient)**
+
+```json
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+> **Windows note:** `VAR=value python ...` is bash syntax — invalid in cmd.exe (Claude Code's hook shell on Windows). Use `python "path"` only; account is auto-detected from `claude auth status`. Only set `CLAUDE_ACCOUNT` explicitly when auto-detection returns the wrong account (e.g. GitHub Copilot sessions).
 
 ### Hook Environment Variables
 
 | Variable                | Default                      | Description                          |
 | ----------------------- | ---------------------------- | ------------------------------------ |
 | `TOKEN_MONITOR_URL`     | `http://192.168.18.169:8010` | Backend API URL                      |
-| `CLAUDE_ACCOUNT`        | `claude-azmi`                | Account identifier (see table above) |
+| `CLAUDE_ACCOUNT`        | auto (from `claude auth status`) | Override only when needed (e.g. `copilot-azmi`) |
 | `CLAUDE_MODEL`          | `claude-sonnet-4-6`          | Model used in the session            |
 | `TOKEN_MONITOR_PROJECT` | CWD folder name              | Project name tag                     |
 
