@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "skills": {
+    "AI Engineer": {
+      "source": "boshi-xixixi/TraeSkill",
+      "sourceType": "github",
+      "computedHash": "8e3abada12185f9d1fa2d0b688b3e67dc0874f1baf02b36c3c1ddc144bd92310"
+    },
+    "Backend Database Expert": {
+      "source": "boshi-xixixi/TraeSkill",
+      "sourceType": "github",
+      "computedHash": "5d60530cb6e58217495981077bc686e12fe4fe96a81e4d702ba01e0eb16175e7"
+    },
+    "Backend Python Expert": {
+      "source": "boshi-xixixi/TraeSkill",
+      "sourceType": "github",
+      "computedHash": "bc727be60167a27002107a2a1549d5f346182f780f3af9bd946eb9d52e59e0f0"
+    },
+    "Security Specialist": {
+      "source": "boshi-xixixi/TraeSkill",
+      "sourceType": "github",
+      "computedHash": "7c45d441a61b75d37cbe04910c231a78f0775f6f897c41a7ca4dc2eb325c35c5"
+    },
+    "artifacts-builder": {
+      "source": "boshi-xixixi/TraeSkill",
+      "sourceType": "github",
+      "computedHash": "91d7a65b2dce4db1c3054530b5e79eb3f065f36b0f644f8f7a9d47609ec706aa"
+    },
+    "brainstorming": {
+      "source": "boshi-xixixi/TraeSkill",
+      "sourceType": "github",
+      "computedHash": "89a9694e20a4a1d1d1005521204eeed18474efd59e83e5bdce05bfdfb78ceaab"
+    },
+    "mcp-builder": {
+      "source": "boshi-xixixi/TraeSkill",
+      "sourceType": "github",
+      "computedHash": "f08cbdec74dba480ec5217363446dae154b7576b8c3d9b4cb17aff234f15973b"
+    },
+    "skill-creator": {
+      "source": "boshi-xixixi/TraeSkill",
+      "sourceType": "github",
+      "computedHash": "3893f9b73632f3099e81f5d5d4b3b59a813d06a8da1f08ebb6624a5a70578232"
+    }
+  }
+}
