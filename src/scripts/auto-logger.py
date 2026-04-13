@@ -28,6 +28,7 @@ Setup in global ~/.claude/settings.json (applies to ALL projects):
 Docs: https://docs.anthropic.com/en/docs/claude-code/hooks
 """
 
+import glob
 import json
 import os
 import subprocess
@@ -98,6 +99,51 @@ def get_label_from_git() -> str:
         return result.stdout.strip()[:120] if result.returncode == 0 else ""
     except Exception:
         return ""
+
+
+def get_tokens_from_jsonl(session_id: str) -> tuple[int, int]:
+    """
+    Read token totals for a session from Claude Code's local JSONL files.
+
+    Claude Code's SessionEnd hook does NOT pass usage in stdin — the token data
+    lives in ~/.claude/projects/<slug>/<session-id>.jsonl as per-message usage
+    on each assistant entry.
+
+    Sums across all assistant messages:
+      input  = input_tokens + cache_creation_input_tokens + cache_read_input_tokens
+      output = output_tokens
+    """
+    if not session_id:
+        return 0, 0
+
+    claude_home = os.path.expanduser("~/.claude")
+    pattern = os.path.join(claude_home, "projects", "**", f"{session_id}.jsonl")
+    files = glob.glob(pattern, recursive=True)
+    if not files:
+        return 0, 0
+
+    total_input = 0
+    total_output = 0
+    try:
+        with open(files[0], encoding="utf-8", errors="replace") as f:
+            for line in f:
+                try:
+                    d = json.loads(line)
+                    if d.get("type") != "assistant":
+                        continue
+                    usage = d.get("message", {}).get("usage", {})
+                    total_input += (
+                        usage.get("input_tokens", 0)
+                        + usage.get("cache_creation_input_tokens", 0)
+                        + usage.get("cache_read_input_tokens", 0)
+                    )
+                    total_output += usage.get("output_tokens", 0)
+                except (json.JSONDecodeError, AttributeError):
+                    pass
+    except Exception as e:
+        print(f"[auto-logger] WARN: could not read JSONL for session {session_id}: {e}", file=sys.stderr)
+
+    return total_input, total_output
 
 
 def post_log(payload: dict) -> bool:
@@ -175,9 +221,15 @@ def main():
     except json.JSONDecodeError:
         hook_data = {}
 
-    usage         = hook_data.get("usage", {})
-    input_tokens  = usage.get("input_tokens", 0)
-    output_tokens = usage.get("output_tokens", 0)
+    session_id = hook_data.get("session_id", "")
+
+    # Claude Code does NOT send usage in SessionEnd stdin — read from local JSONL.
+    # Fall back to stdin usage field only if JSONL yields nothing (future-proofing).
+    input_tokens, output_tokens = get_tokens_from_jsonl(session_id)
+    if input_tokens == 0 and output_tokens == 0:
+        stdin_usage   = hook_data.get("usage", {})
+        input_tokens  = stdin_usage.get("input_tokens", 0)
+        output_tokens = stdin_usage.get("output_tokens", 0)
 
     if input_tokens == 0 and output_tokens == 0:
         print("[auto-logger] No token usage detected, skipping.", file=sys.stderr)

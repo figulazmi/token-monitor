@@ -79,11 +79,11 @@ POSTs token usage to the API automatically.
 chmod +x /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py
 ```
 
-### 4b. Configure per account (on your laptop)
+### 4b. Configure (on your laptop)
 
-Add to each project's `.claude/settings.json`:
+Add to **global** `~/.claude/settings.json` (applies to all projects):
 
-**Account: azmi.codes@gmail.com**
+**Windows (cmd.exe — account auto-detected from `claude auth status`)**
 
 ```json
 {
@@ -94,7 +94,7 @@ Add to each project's `.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py"
+            "command": "python \"C:\\Users\\Clandesitine\\source\\repos\\token-monitor\\src\\scripts\\auto-logger.py\""
           }
         ]
       }
@@ -103,7 +103,9 @@ Add to each project's `.claude/settings.json`:
 }
 ```
 
-**Account: figurululazmi@gmail.com**
+> **Windows note:** `VAR=value python ...` is bash syntax — invalid in cmd.exe (Claude Code's hook shell on Windows). Use plain `python "path"` only. Account is auto-detected from `claude auth status`.
+
+**Linux/macOS**
 
 ```json
 {
@@ -114,7 +116,7 @@ Add to each project's `.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_ACCOUNT=claude-figur TOKEN_MONITOR_PROJECT=my-project python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py"
+            "command": "python3 /opt/homelab/infrastructure/token-monitor/src/scripts/auto-logger.py"
           }
         ]
       }
@@ -138,14 +140,78 @@ Add to each project's `.claude/settings.json`:
 | `claude-figur`         | Claude Pro figurululazmi |
 | `copilot-azmi`         | Copilot azmi.codes       |
 
-### 4d. Override model per project
+### 4d. Override model or project via env var
 
-```bash
-CLAUDE_ACCOUNT=claude-azmi CLAUDE_MODEL=claude-opus-4-6 TOKEN_MONITOR_PROJECT=homelab \
-  python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py
+Set env vars before the hook if auto-detection is insufficient (e.g. GitHub Copilot sessions).
+
+**Windows (PowerShell — set before running):**
+
+```powershell
+$env:CLAUDE_ACCOUNT = "copilot-azmi"
+$env:CLAUDE_MODEL = "claude-opus-4-6"
+$env:TOKEN_MONITOR_PROJECT = "homelab"
 ```
 
-### 4e. PostToolUse Write Hook (RAG Capture checkpoint)
+**Linux/macOS:**
+
+```bash
+CLAUDE_ACCOUNT=copilot-azmi CLAUDE_MODEL=claude-opus-4-6 TOKEN_MONITOR_PROJECT=homelab \
+  python3 /opt/homelab/infrastructure/token-monitor/src/scripts/auto-logger.py
+```
+
+### 4e. How Token Detection Works
+
+Claude Code's `SessionEnd` hook **does not** send token usage in stdin. What is actually passed:
+
+```json
+{ "session_id": "abc123-...", "hook_event_name": "SessionEnd", "cwd": "/path/to/project" }
+```
+
+No `usage` field. Token data lives in Claude Code's local JSONL file for the session:
+
+```
+~/.claude/projects/<project-slug>/<session-id>.jsonl
+```
+
+Every time Claude responds, one line is appended:
+
+```json
+{
+  "type": "assistant",
+  "sessionId": "abc123-...",
+  "message": {
+    "content": "...",
+    "usage": {
+      "input_tokens": 3,
+      "cache_read_input_tokens": 12506,
+      "cache_creation_input_tokens": 0,
+      "output_tokens": 160
+    }
+  }
+}
+```
+
+`auto-logger.py` reads the JSONL file and sums all `type=assistant` entries:
+
+1. Gets `session_id` from hook stdin
+2. Globs `~/.claude/projects/**/<session-id>.jsonl`
+3. Sums usage across all assistant messages
+4. POSTs total to Token Monitor API
+
+**Token fields explained:**
+
+| Field | What it means | Cost vs normal |
+| --- | --- | --- |
+| `input_tokens` | New input tokens (non-cached) | 1× |
+| `cache_read_input_tokens` | Tokens read from prompt cache | 0.1× |
+| `cache_creation_input_tokens` | Tokens written to prompt cache | 1.25× |
+| `output_tokens` | Claude's response tokens | 1× |
+
+`auto-logger` sums all three input fields as **total input** — same as `/cost` reports.
+
+---
+
+### 4f. PostToolUse Write Hook (RAG Capture checkpoint)
 
 Logs a checkpoint entry to Token Monitor whenever `/rag-knowledge-capture-cli` writes a summary file to `.claude/summaries/`. The entry has `tokens=0` but serves as a visible timestamp marker in the dashboard.
 
@@ -177,13 +243,21 @@ Add to **global** `~/.claude/settings.json` alongside the existing `SessionEnd` 
 
 ## 5. Manual Testing
 
-```bash
-# Test the hook script manually
-echo '{"usage":{"input_tokens":1000,"output_tokens":300}}' | \
-  CLAUDE_ACCOUNT=claude-azmi TOKEN_MONITOR_PROJECT=test \
-  python3 /opt/homelab/infrastructure/token-monitor/scripts/auto-logger.py
-# → [auto-logger] Logged 1,300 tokens (1,000 in / 300 out) [claude-azmi] → http://...
+**Option A — Full end-to-end (reads from real JSONL):**
 
+```bash
+# 1. Find a real session ID from an existing JSONL file
+ls ~/.claude/projects/C--Users-Clandesitine-source-repos-token-monitor/*.jsonl
+# → ...3a78fa75-4fb9-4e13-8748-a06ffee66a1e.jsonl
+
+# 2. Pass it as the hook would (Windows)
+echo '{"session_id":"3a78fa75-4fb9-4e13-8748-a06ffee66a1e"}' | python "C:\Users\Clandesitine\source\repos\token-monitor\src\scripts\auto-logger.py"
+# → [auto-logger] Logged 1,084,781 tokens (1,065,824 in / 18,957 out) [figurululazmi] -> http://...
+```
+
+**Option B — API only (bypass JSONL, direct curl POST):**
+
+```bash
 # Manual POST via curl
 curl -X POST http://localhost:8010/sessions \
   -H "Content-Type: application/json" \
