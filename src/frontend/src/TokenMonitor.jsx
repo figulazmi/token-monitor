@@ -44,16 +44,19 @@ const MODELS = {
 
 const ACCOUNTS = {
   claude: [
-    { id: 'claude-azmi', label: 'Claude Pro · azmi.codes' },
-    { id: 'claude-figur', label: 'Claude Pro · figurululazmi' },
+    { id: 'figurululazmi', label: 'Claude Pro · figurululazmi' },
+    { id: 'azmi-codes', label: 'Claude Pro · azmi.codes' },
   ],
   copilot: [{ id: 'copilot-azmi', label: 'Copilot · azmi.codes' }],
 };
 
 const ACCOUNT_META = {
-  'claude-azmi': { label: 'Claude · azmi.codes', color: '#FF6B35' },
-  'claude-figur': { label: 'Claude · figurululazmi', color: '#9B59B6' },
-  'copilot-azmi': { label: 'Copilot · azmi.codes', color: '#0078D4' },
+  'figurululazmi': { label: 'Claude · figurululazmi', color: '#9B59B6' },
+  'azmi-codes':    { label: 'Claude · azmi.codes',    color: '#FF6B35' },
+  'copilot-azmi':  { label: 'Copilot · azmi.codes',   color: '#0078D4' },
+  // legacy keys — backward compat for sessions logged before this fix
+  'claude-figur':  { label: 'Claude · figurululazmi', color: '#9B59B6' },
+  'claude-azmi':   { label: 'Claude · azmi.codes',    color: '#FF6B35' },
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
