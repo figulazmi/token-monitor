@@ -172,48 +172,11 @@ def post_log(payload: dict) -> bool:
 
 def main_checkpoint():
     """
-    Called via PostToolUse Write hook.
-    Detects when a .claude/summaries/*.md file is written (RAG knowledge capture)
-    and posts a checkpoint entry to the Token Monitor API.
-
-    Stdin format (PostToolUse):
-      { "tool_name": "Write", "tool_input": { "file_path": "...", "content": "..." }, ... }
+    Called via PostToolUse Write hook when a .claude/summaries/*.md file is written.
+    No-op: 0-token checkpoint entries add noise to Token Monitor history.
+    Real token usage is captured by the SessionEnd hook instead.
     """
-    try:
-        raw = sys.stdin.read()
-        hook_data = json.loads(raw) if raw.strip() else {}
-    except json.JSONDecodeError:
-        hook_data = {}
-
-    tool_input = hook_data.get("tool_input", {})
-    file_path  = tool_input.get("file_path", "").replace("\\", "/")
-
-    # Only act on .claude/summaries/*.md writes
-    if "summaries/" not in file_path or not file_path.endswith(".md"):
-        sys.exit(0)
-
-    filename   = os.path.basename(file_path)
-    account    = get_claude_account()
-    git_branch = get_git_branch()
-    project    = PROJECT or os.path.basename(os.getcwd())
-
-    payload = {
-        "platform":      PLATFORM,
-        "account":       account,
-        "model":         MODEL,
-        "input_tokens":  0,
-        "output_tokens": 0,
-        "label":         f"RAG Capture: {filename}",
-        "git_branch":    git_branch,
-        "project":       project,
-    }
-
-    success = post_log(payload)
-    if success:
-        account_disp = account or "UNASSIGNED"
-        print(f"[auto-logger] RAG checkpoint logged: {filename} [{account_disp}] -> {API_URL}")
-    else:
-        print(f"[auto-logger] Failed to post RAG checkpoint to {API_URL}", file=sys.stderr)
+    sys.exit(0)
 
 
 def main():
