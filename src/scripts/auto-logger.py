@@ -94,15 +94,24 @@ def get_git_branch() -> str:
 
 
 def get_label_from_git() -> str:
-    """Use last commit message as session label."""
+    """Use last non-merge commit message as session label, prefixed with branch."""
+    branch = get_git_branch()
     try:
         result = subprocess.run(
-            ["git", "log", "-1", "--pretty=%s"],
+            ["git", "log", "-1", "--pretty=%s", "--no-merges"],
             capture_output=True, text=True, timeout=3,
         )
-        return result.stdout.strip()[:120] if result.returncode == 0 else ""
+        subject = result.stdout.strip()[:80] if result.returncode == 0 else ""
     except Exception:
-        return ""
+        subject = ""
+
+    if subject:
+        prefix = f"{branch}: " if branch else ""
+        return f"{prefix}{subject}"
+
+    if branch:
+        return f"{branch} @ {datetime.now().strftime('%Y-%m-%d')}"
+    return ""
 
 
 def get_tokens_from_jsonl(session_id: str) -> tuple[int, int]:
