@@ -11,6 +11,23 @@
     }
   },
   "permissions": {
-    "allow": ["Bash(*)"]
+    "deny": [
+      "Bash(git *)",
+      "Bash(find *)",
+      "Bash(ls *)",
+      "Bash(grep *)",
+      "Bash(xargs *)",
+      "Bash(dir *)",
+      "Bash(dotnet *)",
+      "Bash(curl http*)",
+      "Bash(curl https*)",
+      "Bash(gh *)",
+      "Bash(docker *)",
+      "Bash(npm *)",
+      "Bash(pnpm *)",
+      "Bash(npx *)",
+      "Bash(kubectl *)",
+      "Bash(wget *)"
+    ]
   }
 }
